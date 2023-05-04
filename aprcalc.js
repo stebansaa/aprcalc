@@ -9,9 +9,28 @@ const farm = '0x4541c5502e6D1b66edF515950A2c6a96331e575E';
 
 // is 10k in 14 days. not 9K unless we change it. 
 // 714.285714286
-const yieldPerDay = 714.28; 
+const yieldPerDay = 714.28;
 const ercAprice = 1;
 const ercBprice = 0.36;
+
+
+const contractAbi = [
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
 
 const ercABI = [
   // standard ERC20 ABI
@@ -67,30 +86,21 @@ const LP_CONTRACT_ABI = [
   }
 ];
 
-
-async function getERC20TokenBalanceInContract(tokenAddress) {
-  const erc20Contract = new web3.eth.Contract(ercABI, tokenAddress);
-  const balance = await erc20Contract.methods.balanceOf(lpAddress).call();
-  const balanceInEther = web3.utils.fromWei(balance, 'ether');
-  //console.log(`ERC20 Balance: ${balanceInEther}`);
-  return balanceInEther;
-}
-
 async function main() {
   try {
-    
+
     //const lpContractAddress = ;
     const pricefrge = await getTokenPriceFromLP('0xa977efdb6dd8818274215ca172772d3297c253c0')
     const priceeos = await getTokenPriceFromEOSUSDTLP('0x112bb3C75544813E79c8E5F07c124956FCFF3410')
 
 
-  //  await price = getTokenPriceFromLP(`0xa977efdb6dd8818274215ca172772d3297c253c0`);
-  
+    //  await price = getTokenPriceFromLP(`0xa977efdb6dd8818274215ca172772d3297c253c0`);
+
     console.log("pricefrge", pricefrge)
     console.log("priceeos", priceeos)
 
-// used these names because it will be other tokens as well,not only FRGE or EOS. 
-    
+    // used these names because it will be other tokens as well,not only FRGE or EOS. 
+
     const erc20BalanceA = await getERC20TokenBalanceInContract(erc20TokenAddressA);
     const erc20BalanceB = await getERC20TokenBalanceInContract(erc20TokenAddressB);
 
@@ -101,45 +111,58 @@ async function main() {
     // token A is FRGE, should use pricefrge
     console.log(`The value locked on token A is: ${tokenAValue} USD.`);
 
-    const tokenBValue = parseFloat(erc20BalanceB) * priceeos ;
+    const tokenBValue = parseFloat(erc20BalanceB) * priceeos;
     // token B is EOS should use priceeos
     console.log(`The value locked on token B is: ${tokenBValue} USD.`);
-    
+
     const totalValue = tokenAValue + tokenBValue;
     console.log(`The total value is: ${totalValue} USD.`);
 
-  //https://explorer.evm.eosnetwork.com/address/0x4541c5502e6D1b66edF515950A2c6a96331e575E/tokens#address-tabs
+    //https://explorer.evm.eosnetwork.com/address/0x4541c5502e6D1b66edF515950A2c6a96331e575E/tokens#address-tabs
 
-    //ok so just need to fix these 2:
-    const LpOwnedByFarm = 7148 //await getERC20TokenBalanceInContract(farm);
-    
-    const totalLpTokens =  10888 // UNI-V2  // await getERC20TokenBalanceInContract(farm);
+    //await getERC20TokenBalanceInContract(farm);
+    // so the LPs owned by 0x4541c5502e6D1b66edF515950A2c6a96331e575E
 
-    
-    
-    
+
+    const lpTokenContract = new web3.eth.Contract(ercABI, lpAddress);
+    const lpBalance = await lpTokenContract.methods.balanceOf(farm).call();
+    const LpOwnedByFarm = web3.utils.fromWei(lpBalance, 'ether');
+
+    console.log("LpOwnedByFarm:", LpOwnedByFarm)
+
+    //    const LpOwnedByFarm = 7148
+
+    // await getERC20TokenBalanceInContract(farm);
+    // total of LPs minted, so just call supply on the contract
+    // total supply is here https://explorer.evm.eosnetwork.com/token/0xA977EFDB6dd8818274215ca172772D3297c253c0/token-transfers
+
+    const contractAddressX = '0xA977EFDB6dd8818274215ca172772D3297c253c0';
+    const contractX = new web3.eth.Contract(contractAbi, contractAddressX);
+    const totalLpTokens = web3.utils.fromWei(await contractX.methods.totalSupply().call(), 'ether');
+
+    console.log('Total totalLpTokens is:', totalLpTokens);
+
+
+    // const totalLpTokens = 10888
+    // const totallp = await getERC20TokenBalanceInContract('0x4541c5502e6D1b66edF515950A2c6a96331e575E');
+    //console.log("totallp:", totallp)
+
+
+
     // Total investment = (LP Token Owned by Farm ÷ total LP token) × totalValue
-    const totalInvestment = (LpOwnedByFarm / totalLpTokens) * totalValue ;
+    const totalInvestment = (LpOwnedByFarm / totalLpTokens) * totalValue;
     console.log("totalInvestment:", totalInvestment)
-    
-  
+
+
     // APRX = ((Yield per day x priceFrge / Total investment) * 365) * 100
-    
-    const aprX = (((yieldPerDay * pricefrge) / totalInvestment ) * 365) * 100;
-    console.log(`The APRX is: ${aprX.toFixed(2)}%`);
 
-
-
-
-
-
-    
-    // APR = ((Yield per day / Total investment) * 365) * 100
-    const apr = ((yieldPerDay / totalValue) * 365) * 100;
+    const apr = (((yieldPerDay * pricefrge) / totalInvestment) * 365) * 100;
     console.log(`The APR is: ${apr.toFixed(2)}%`);
 
+    // APR = ((Yield per day / Total investment) * 365) * 100
+    // const apr = ((yieldPerDay / totalValue) * 365) * 100;
+    // console.log(`The APR is: ${apr.toFixed(2)}%`);
 
-  
   } catch (error) {
     console.error(error);
   }
@@ -149,6 +172,15 @@ async function main() {
 main();
 
 
+
+
+async function getERC20TokenBalanceInContract(tokenAddress) {
+  const erc20Contract = new web3.eth.Contract(ercABI, tokenAddress);
+  const balance = await erc20Contract.methods.balanceOf(lpAddress).call();
+  const balanceInEther = web3.utils.fromWei(balance, 'ether');
+  //console.log(`ERC20 Balance: ${balanceInEther}`);
+  return balanceInEther;
+}
 
 
 
@@ -174,10 +206,10 @@ async function getTokenPriceFromEOSUSDTLP(lpContractAddress) {
 
   const reserve1String = _reserve1.toString();
   const reserve0String = _reserve0.toString();
-  
+
   const decimalIndexReserve1 = reserve1String.indexOf('.');
   const decimalIndexReserve0 = reserve0String.indexOf('.');
-  
+
   const reserve1ThreeDecimals = parseFloat(reserve1String.slice(0, decimalIndexReserve1 + 4));
   const reserve0ThreeDecimals = parseFloat(reserve0String.slice(0, decimalIndexReserve0 + 4));
 
